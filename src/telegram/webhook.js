@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { waitUntil } from "@vercel/functions";
 import { parseCommand } from "../parser/command-parser.js";
 import { sendMessage } from "./telegram.service.js";
 import { handleAdd } from "../commands/add.js";
@@ -16,25 +17,8 @@ export const webhookRouter = Router();
 // In-memory map: chatId → pending confirmation type
 const pendingConfirmations = new Map();
 
-webhookRouter.post("/webhook", async (req, res) => {
-  // Respond immediately to Telegram so it doesn't retry
-  res.sendStatus(200);
-
+async function processMessage(chatId, userText) {
   try {
-    const message = req.body?.message;
-    console.log("message:", message);
-
-    if (!message?.text) {
-      console.log("No text message found");
-      return;
-    }
-
-    const chatId = message.chat.id;
-    const userText = message.text.trim();
-
-    console.log("chatId:", chatId);
-    console.log("userText:", userText);
-
     // --- Check for pending DELETE_ALL confirmation ---
     if (pendingConfirmations.has(chatId)) {
       const pendingAction = pendingConfirmations.get(chatId);
@@ -53,15 +37,7 @@ webhookRouter.post("/webhook", async (req, res) => {
     }
 
     // --- Send acknowledgement before the (slow) LLM call ---
-    try {
-      console.log("Sending Telegram message...");
-
-      await sendMessage(chatId, "⏳ Processing...");
-
-      console.log("Telegram message sent!");
-    } catch (error) {
-      console.error("SEND MESSAGE ERROR:", error);
-    }
+    await sendMessage(chatId, "⏳ Processing...");
 
     // --- Parse the user message with the LLM ---
     let command;
@@ -113,6 +89,26 @@ webhookRouter.post("/webhook", async (req, res) => {
 
     await sendMessage(chatId, reply);
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("Error in processMessage:", error);
+  }
+}
+
+webhookRouter.post("/webhook", (req, res) => {
+  try {
+    const message = req.body?.message;
+
+    if (!message?.text) {
+      return res.sendStatus(200);
+    }
+
+    const chatId = message.chat.id;
+    const userText = message.text.trim();
+
+    // Keep serverless execution alive until processing finishes
+    waitUntil(processMessage(chatId, userText));
+    
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("Webhook route error:", error);
   }
 });

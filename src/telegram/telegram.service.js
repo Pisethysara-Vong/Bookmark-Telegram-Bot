@@ -6,6 +6,7 @@ const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOK
  * @param {string} text
  */
 export async function sendMessage(chatId, text) {
+  console.log("sendMessage START");
   const url = `${TELEGRAM_API}/sendMessage`;
 
   const response = await fetch(url, {
