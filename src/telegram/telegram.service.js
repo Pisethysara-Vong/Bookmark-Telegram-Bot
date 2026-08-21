@@ -10,15 +10,24 @@ export async function sendMessage(chatId, text) {
 
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       chat_id: chatId,
       text,
     }),
   });
 
+  const body = await response.text();
+
+  console.log("Telegram response:", response.status, body);
+
   if (!response.ok) {
-    const body = await response.text();
-    console.error(`Telegram sendMessage failed: ${response.status}`, body);
+    throw new Error(
+      `Telegram sendMessage failed: ${response.status} ${body}`
+    );
   }
+
+  return JSON.parse(body);
 }

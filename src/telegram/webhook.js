@@ -22,10 +22,18 @@ webhookRouter.post("/webhook", async (req, res) => {
 
   try {
     const message = req.body?.message;
-    if (!message?.text) return;
+    console.log("message:", message);
+
+    if (!message?.text) {
+      console.log("No text message found");
+      return;
+    }
 
     const chatId = message.chat.id;
     const userText = message.text.trim();
+
+    console.log("chatId:", chatId);
+    console.log("userText:", userText);
 
     // --- Check for pending DELETE_ALL confirmation ---
     if (pendingConfirmations.has(chatId)) {
@@ -45,7 +53,15 @@ webhookRouter.post("/webhook", async (req, res) => {
     }
 
     // --- Send acknowledgement before the (slow) LLM call ---
-    await sendMessage(chatId, "⏳ Processing...");
+    try {
+      console.log("Sending Telegram message...");
+
+      await sendMessage(chatId, "⏳ Processing...");
+
+      console.log("Telegram message sent!");
+    } catch (error) {
+      console.error("SEND MESSAGE ERROR:", error);
+    }
 
     // --- Parse the user message with the LLM ---
     let command;
