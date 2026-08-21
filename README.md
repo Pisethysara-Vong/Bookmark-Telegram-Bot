@@ -254,17 +254,3 @@ Telegram requires a publicly accessible **HTTPS** URL to send webhook updates.
    ```
 
 ---
-
-## 🧪 Testing the Command Parser
-
-You can test how LiteRouter parses sample natural-language inputs without running Telegram:
-
-```bash
-node test-parser.js
-```
-
----
-
-## 📄 License
-
-This project is licensed under the [ISC License](LICENSE).
