@@ -44,6 +44,9 @@ webhookRouter.post("/webhook", async (req, res) => {
       }
     }
 
+    // --- Send acknowledgement before the (slow) LLM call ---
+    await sendMessage(chatId, "⏳ Processing...");
+
     // --- Parse the user message with the LLM ---
     let command;
     try {

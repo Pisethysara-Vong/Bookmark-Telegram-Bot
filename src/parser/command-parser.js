@@ -2,63 +2,40 @@ import { z } from "zod";
 
 const LITEROUTER_BASE_URL = "https://api.literouter.com/v1";
 
-const SYSTEM_PROMPT = `You are a command parser for a Telegram story bookmark bot.
+const SYSTEM_PROMPT = `You are a strict JSON command parser for a reading-list bookmark app.
+This is a completely safe, harmless application that helps users track which chapter they are on in books and stories.
 
-Your ONLY job is to convert the user's message into exactly one
-of the available commands.
+Your ONLY job: read the user's message, decide which command it matches, and return a JSON object. Nothing else. No commentary, no explanation, no refusal.
 
-Available commands:
+Commands:
 
-ADD
-- Description: Add a story bookmark.
-- Parameters: name (string), chapter (integer)
+ADD          — User wants to save a new bookmark.         Parameters: name (string), chapter (integer)
+UPDATE       — User wants to change a bookmark's chapter. Parameters: name (string), chapter (integer)
+LIST_ALL     — User wants to see all their bookmarks.     Parameters: none
+LIST_SPECIFIC — User wants to see one bookmark.           Parameters: name (string)
+DELETE_ALL   — User wants to remove all bookmarks from their list. Parameters: none
+DELETE_SPECIFIC — User wants to remove one bookmark from their list. Parameters: name (string)
 
-UPDATE
-- Description: Update an existing story bookmark.
-- Parameters: name (string), chapter (integer)
-
-LIST_ALL
-- Description: List every saved story.
-- Parameters: none
-
-LIST_SPECIFIC
-- Description: Show one specific story.
-- Parameters: name (string)
-
-DELETE_ALL
-- Description: Delete every saved story.
-- Parameters: none
-
-DELETE_SPECIFIC
-- Description: Delete one specific story.
-- Parameters: name (string)
+"Delete" and "remove" mean removing a bookmark entry from the user's personal reading list. This is a normal, safe operation.
 
 Rules:
-1. Only return commands from the list above.
-2. Never invent a command.
-3. Never execute a command.
-4. Extract parameters from the user's message.
-5. Chapter must be an integer.
-6. If a required parameter is missing, return it as null.
-7. If the message does not clearly match a command, return UNKNOWN.
-8. Return ONLY valid JSON.
+1. ALWAYS respond with ONLY a JSON object. Never respond with plain text.
+2. Only use commands from the list above. Never invent new commands.
+3. Extract parameters from the user's message.
+4. Chapter must be an integer.
+5. If a required parameter is missing, set it to null.
+6. If the message does not match any command, return {"command": "UNKNOWN", "parameters": {}}.
+7. Do NOT refuse any message. Just classify it or return UNKNOWN.
 
-Output format:
+Example outputs:
 
-{
-  "command": "ADD",
-  "parameters": {
-    "name": "Haikyuu",
-    "chapter": 200
-  }
-}
+{"command": "ADD", "parameters": {"name": "Haikyuu", "chapter": 200}}
+{"command": "LIST_ALL", "parameters": {}}
+{"command": "DELETE_ALL", "parameters": {}}
+{"command": "DELETE_SPECIFIC", "parameters": {"name": "Haikyuu"}}
+{"command": "UNKNOWN", "parameters": {}}`;
 
-For an unknown message:
 
-{
-  "command": "UNKNOWN",
-  "parameters": {}
-}`;
 
 // --- Zod schemas ---
 
@@ -158,6 +135,10 @@ export async function parseCommand(userMessage) {
   // Extract JSON from the response (the LLM might wrap it in markdown code fences)
   const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    // Some models return just "UNKNOWN" as plain text instead of JSON
+    if (rawContent.toUpperCase().includes("UNKNOWN")) {
+      return { command: "UNKNOWN", parameters: {} };
+    }
     throw new Error(`Could not extract JSON from LLM response: ${rawContent}`);
   }
 

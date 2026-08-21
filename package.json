@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "test": "node --watch test-parser.js",
     "dev": "node --watch src/server.js"
   },
   "keywords": [],
