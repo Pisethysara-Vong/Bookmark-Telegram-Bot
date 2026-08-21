@@ -1,4 +1,4 @@
-import { updateStory } from "../database/db.js";
+import { updateStory } from "../database/postgresql/db.js";
 
 /**
  * Handle the UPDATE command.

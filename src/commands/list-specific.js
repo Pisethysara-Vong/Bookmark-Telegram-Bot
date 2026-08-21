@@ -1,4 +1,4 @@
-import { findStory } from "../database/db.js";
+import { findStory } from "../database/postgresql/db.js";
 
 /**
  * Handle the LIST_SPECIFIC command.

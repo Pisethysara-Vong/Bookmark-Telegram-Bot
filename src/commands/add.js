@@ -1,4 +1,4 @@
-import { addStory } from "../database/db.js";
+import { addStory } from "../database/postgresql/db.js";
 
 /**
  * Handle the ADD command.

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { waitUntil } from "@vercel/functions";
 import { parseCommand } from "../parser/command-parser.js";
 import { sendMessage } from "./telegram.service.js";
+import { redis } from "../database/redis/redis.js";
 import { handleAdd } from "../commands/add.js";
 import { handleUpdate } from "../commands/update.js";
 import { handleListAll } from "../commands/list-all.js";
@@ -14,17 +15,18 @@ import { handleDeleteSpecific } from "../commands/delete-specific.js";
 
 export const webhookRouter = Router();
 
-// In-memory map: chatId → pending confirmation type
-const pendingConfirmations = new Map();
+const getConfirmationKey = (chatId) => `pending_confirmation:${chatId}`;
 
 async function processMessage(chatId, userText) {
   try {
-    // --- Check for pending DELETE_ALL confirmation ---
-    if (pendingConfirmations.has(chatId)) {
-      const pendingAction = pendingConfirmations.get(chatId);
+    const confirmationKey = getConfirmationKey(chatId);
 
+    // --- Check for pending DELETE_ALL confirmation in Redis ---
+    const pendingAction = await redis.get(confirmationKey);
+
+    if (pendingAction) {
       if (pendingAction === "DELETE_ALL") {
-        pendingConfirmations.delete(chatId);
+        await redis.del(confirmationKey);
 
         if (userText.toUpperCase() === "YES") {
           const reply = await handleDeleteAll();
@@ -73,7 +75,8 @@ async function processMessage(chatId, userText) {
         break;
 
       case "DELETE_ALL":
-        pendingConfirmations.set(chatId, "DELETE_ALL");
+        // Store pending confirmation in Redis with 5 min (300s) TTL
+        await redis.set(confirmationKey, "DELETE_ALL", { ex: 300 });
         reply = deleteAllConfirmationPrompt();
         break;
 
@@ -106,7 +109,7 @@ webhookRouter.post("/webhook", (req, res) => {
 
     // Keep serverless execution alive until processing finishes
     waitUntil(processMessage(chatId, userText));
-    
+
     res.sendStatus(200);
   } catch (error) {
     console.error("Webhook route error:", error);

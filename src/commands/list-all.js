@@ -1,4 +1,4 @@
-import { getAllStories } from "../database/db.js";
+import { getAllStories } from "../database/postgresql/db.js";
 
 /**
  * Handle the LIST_ALL command.

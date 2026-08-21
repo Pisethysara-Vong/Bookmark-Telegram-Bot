@@ -1,4 +1,4 @@
-import { deleteAllStories } from "../database/db.js";
+import { deleteAllStories } from "../database/postgresql/db.js";
 
 /**
  * Handle the DELETE_ALL command (after confirmation).

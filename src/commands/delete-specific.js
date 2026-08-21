@@ -1,4 +1,4 @@
-import { deleteStory } from "../database/db.js";
+import { deleteStory } from "../database/postgresql/db.js";
 
 /**
  * Handle the DELETE_SPECIFIC command.
