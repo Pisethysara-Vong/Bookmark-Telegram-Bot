@@ -17,31 +17,93 @@ export const webhookRouter = Router();
 
 const getConfirmationKey = (chatId) => `pending_confirmation:${chatId}`;
 
-async function processMessage(chatId, userText) {
-  try {
-    const confirmationKey = getConfirmationKey(chatId);
+/**
+ * Handles pending confirmation actions (such as DELETE_ALL confirmation) stored in Redis.
+ *
+ * @param {number|string} chatId - The Telegram chat ID
+ * @param {string} userText - The raw user message text
+ * @returns {Promise<boolean>} True if a pending action was handled, false otherwise
+ */
+async function handlePendingConfirmation(chatId, userText) {
+  const confirmationKey = getConfirmationKey(chatId);
+  const pendingAction = await redis.get(confirmationKey);
 
-    // --- Check for pending DELETE_ALL confirmation in Redis ---
-    const pendingAction = await redis.get(confirmationKey);
+  if (!pendingAction) {
+    return false;
+  }
 
-    if (pendingAction) {
-      if (pendingAction === "DELETE_ALL") {
-        await redis.del(confirmationKey);
+  if (pendingAction === "DELETE_ALL") {
+    await redis.del(confirmationKey);
 
-        if (userText.toUpperCase() === "YES") {
-          const reply = await handleDeleteAll();
-          await sendMessage(chatId, reply);
-        } else {
-          await sendMessage(chatId, "❌ Delete cancelled.");
-        }
-        return;
-      }
+    if (userText.toUpperCase() === "YES") {
+      const reply = await handleDeleteAll();
+      await sendMessage(chatId, reply);
+    } else {
+      await sendMessage(chatId, "❌ Delete cancelled.");
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Routes and executes the parsed command to its appropriate handler.
+ *
+ * @param {number|string} chatId - The Telegram chat ID
+ * @param {{command: string, parameters: object}} command - Parsed command object
+ * @returns {Promise<string>} Reply message to send back to the user
+ */
+async function executeCommand(chatId, command) {
+  switch (command.command) {
+    case "ADD":
+      return await handleAdd(command.parameters);
+
+    case "UPDATE":
+      return await handleUpdate(command.parameters);
+
+    case "LIST_ALL":
+      return await handleListAll();
+
+    case "LIST_SPECIFIC":
+      return await handleListSpecific(command.parameters);
+
+    case "DELETE_ALL": {
+      const confirmationKey = getConfirmationKey(chatId);
+      // Store pending confirmation in Redis with 5 min (300s) TTL
+      await redis.set(confirmationKey, "DELETE_ALL", { ex: 300 });
+      return deleteAllConfirmationPrompt();
     }
 
-    // --- Send acknowledgement before the (slow) LLM call ---
+    case "DELETE_SPECIFIC":
+      return await handleDeleteSpecific(command.parameters);
+
+    case "UNKNOWN":
+    default:
+      return "I don't understand that command.";
+  }
+}
+
+/**
+ * Orchestrates incoming user message processing:
+ * 1. Checks and handles pending confirmations
+ * 2. Sends initial acknowledgement
+ * 3. Parses natural language text with LLM
+ * 4. Executes mapped command and replies
+ *
+ * @param {number|string} chatId - The Telegram chat ID
+ * @param {string} userText - The raw user message text
+ */
+async function processMessage(chatId, userText) {
+  try {
+    const wasPendingHandled = await handlePendingConfirmation(chatId, userText);
+    if (wasPendingHandled) {
+      return;
+    }
+
+    // Send acknowledgement before the (slow) LLM call
     await sendMessage(chatId, "⏳ Processing...");
 
-    // --- Parse the user message with the LLM ---
     let command;
     try {
       command = await parseCommand(userText);
@@ -54,42 +116,7 @@ async function processMessage(chatId, userText) {
       return;
     }
 
-    // --- Route to the appropriate command handler ---
-    let reply;
-
-    switch (command.command) {
-      case "ADD":
-        reply = await handleAdd(command.parameters);
-        break;
-
-      case "UPDATE":
-        reply = await handleUpdate(command.parameters);
-        break;
-
-      case "LIST_ALL":
-        reply = await handleListAll();
-        break;
-
-      case "LIST_SPECIFIC":
-        reply = await handleListSpecific(command.parameters);
-        break;
-
-      case "DELETE_ALL":
-        // Store pending confirmation in Redis with 5 min (300s) TTL
-        await redis.set(confirmationKey, "DELETE_ALL", { ex: 300 });
-        reply = deleteAllConfirmationPrompt();
-        break;
-
-      case "DELETE_SPECIFIC":
-        reply = await handleDeleteSpecific(command.parameters);
-        break;
-
-      case "UNKNOWN":
-      default:
-        reply = "I don't understand that command.";
-        break;
-    }
-
+    const reply = await executeCommand(chatId, command);
     await sendMessage(chatId, reply);
   } catch (error) {
     console.error("Error in processMessage:", error);

@@ -6,7 +6,6 @@ const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOK
  * @param {string} text
  */
 export async function sendMessage(chatId, text) {
-  console.log("sendMessage START");
   const url = `${TELEGRAM_API}/sendMessage`;
 
   const response = await fetch(url, {
@@ -22,13 +21,9 @@ export async function sendMessage(chatId, text) {
 
   const body = await response.text();
 
-  console.log("Telegram response:", response.status, body);
-
   if (!response.ok) {
     throw new Error(
       `Telegram sendMessage failed: ${response.status} ${body}`
     );
   }
-
-  return JSON.parse(body);
 }
