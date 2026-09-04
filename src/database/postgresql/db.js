@@ -19,7 +19,7 @@ export async function findStory(name) {
   return await prisma.story.findFirst({
     where: {
       name: {
-        equals: name,
+        contains: name,
         mode: "insensitive",
       },
     },
