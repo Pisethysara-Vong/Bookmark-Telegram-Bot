@@ -2,10 +2,11 @@ import { deleteAllStories } from "../database/postgresql/db.js";
 
 /**
  * Handle the DELETE_ALL command (after confirmation).
+ * @param {number|string|bigint} userId
  * @returns {Promise<string>} response message
  */
-export async function handleDeleteAll() {
-  await deleteAllStories();
+export async function handleDeleteAll(userId) {
+  await deleteAllStories(userId);
   return "🗑️ All stories have been deleted.";
 }
 

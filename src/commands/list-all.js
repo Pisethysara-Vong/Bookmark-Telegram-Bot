@@ -2,10 +2,11 @@ import { getAllStories } from "../database/postgresql/db.js";
 
 /**
  * Handle the LIST_ALL command.
+ * @param {number|string|bigint} userId
  * @returns {Promise<string>} response message
  */
-export async function handleListAll() {
-  const stories = await getAllStories();
+export async function handleListAll(userId) {
+  const stories = await getAllStories(userId);
 
   if (stories.length === 0) {
     return "📭 No stories saved yet.";
