@@ -27,6 +27,7 @@ Example outputs:
 
 {"command": "ADD", "parameters": {"name": "Haikyuu", "chapter": 200}}
 {"command": "LIST_ALL", "parameters": {}}
+{"command": "LIST_SPECIFIC", "parameters": {"name": "Haikyuu"}}
 {"command": "DELETE_ALL", "parameters": {}}
 {"command": "DELETE_SPECIFIC", "parameters": {"name": "Haikyuu"}}
 {"command": "UNKNOWN", "parameters": {}}`;
