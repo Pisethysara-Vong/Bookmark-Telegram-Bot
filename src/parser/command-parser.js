@@ -28,15 +28,25 @@ async function callLlmApi(userMessage) {
 
   if (!response.ok) {
     const body = await response.text();
+    const model = process.env.LITEROUTER_MODEL || "llama-3.1-8b-instruct:free";
     console.error(`LiteRouter API error: ${response.status}`, body);
-    throw new Error("LLM API request failed");
+    const err = new Error(
+      `The AI model (${model}) is not responding (HTTP ${response.status}). Please try again later or contact the admin to switch models.`
+    );
+    err.isModelError = true;
+    throw err;
   }
 
   const data = await response.json();
   const rawContent = data.choices?.[0]?.message?.content;
 
   if (!rawContent) {
-    throw new Error("No content in LLM response");
+    const model = process.env.LITEROUTER_MODEL || "llama-3.1-8b-instruct:free";
+    const err = new Error(
+      `The AI model (${model}) returned an empty response. Please try again later.`
+    );
+    err.isModelError = true;
+    throw err;
   }
 
   return rawContent;

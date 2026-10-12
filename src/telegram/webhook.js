@@ -151,10 +151,10 @@ async function processMessage(chatId, user, userText) {
       command = await parseCommand(userText);
     } catch (error) {
       console.error("Parser error:", error.message);
-      await sendMessage(
-        chatId,
-        "Sorry, I couldn't process your request right now. Please try again."
-      );
+      const userMessage = error.isModelError
+        ? `⚠️ ${error.message}`
+        : "Sorry, something went wrong while processing your request. Please try again.";
+      await sendMessage(chatId, userMessage);
       return;
     }
 
